@@ -43,6 +43,7 @@ Shader "Custom/rayMarch"
                 int stepsTaken;
                 bool hit;
                 float3 hitPos;
+                float3 direction;
             };
 
             // get variables passed from material
@@ -60,7 +61,7 @@ Shader "Custom/rayMarch"
                 // gives calculated distance to scene
                 marchResult march;
                 float3 currentPos = origin;
-                float currentDist = 0;
+                float traveledDist = 0;
                 int i;
                 bool hit=false;
 
@@ -76,31 +77,62 @@ Shader "Custom/rayMarch"
                     }
 
                     currentPos += direction * dist;
-                    currentDist += dist;
+                    traveledDist += dist;
                 }
 
-                march.dist = currentDist;
+                march.dist = traveledDist;
                 march.stepsTaken = i;
                 march.hit = hit;
-                march.hitPos = origin + (direction * currentDist);
+                march.hitPos = origin + (direction * traveledDist);
+                march.direction = direction;
                 return march;
+            }
+
+            float3 getHitNormal(float3 hitPos) {
+                // return direction normal to the surface where hitHappened
+                return normalize(hitPos);
+            }
+
+            float3 getReflectionDirection(float3 hitPos, float3 incomingDirection) {
+                // gives direction where ray should go based on where it hit and the direction it hit from
+                // turn the incomingDirection around, then reflect over the normal (draw it out)
+                float3 hitNormal = getHitNormal(hitPos);
+                float3 ontoNormal = dot(-incomingDirection, hitNormal) * hitNormal;
+                float3 toNormal =  ontoNormal + incomingDirection;
+                float3 outgoingDirection = -incomingDirection + 2*(toNormal);
+                return outgoingDirection;
+            }
+
+            marchResult getRayResult(float3 origin, float3 direction) {
+                marchResult firstResult = rayMarch(origin, direction);
+                if(firstResult.hit){
+                    // do reflection
+                    float3 reflectDirection = getReflectionDirection(firstResult.hitPos, direction);
+                    return rayMarch(firstResult.hitPos + getHitNormal(firstResult.hitPos) * SURFACE_DIST * 1.1, reflectDirection); // move start position slightly away from surface so we're not within the surface dist
+                }
+                return firstResult;
             }
 
             float4 skyBoxColor(float3 direction){
                 float4 ground = float4(0.2, 0.2, 0.2, 0);
-                float4 horizon = float4(0.8, 0.8, 0.8, 0);
-                float4 sky = float4(0.3, 0.5, 0.8, 0);
+                float4 horizon = float4(0.7, 0.9, 0.9, 0);
+                float4 sky = float4(0.25, 0.45, 0.75, 0);
 
-                if(direction.y < 0) {
+                if(direction.y < -0.05) {
                     return ground;
                 }
-                else{
-                    return sky;
+                else if(direction.y >=-0.05 && direction.y < 0) {
+                    float step = smoothstep(-0.05, 0, direction.y);
+                    return lerp(ground, horizon, step);
                 }
-                //else if(direction.y >=0 && direction.y < 0.2) {
-                //    float step = smoothstep(0, 0.2, direction.y)
-                //    return lerp(ground, horizon, step)
-                //}
+                else if(direction.y >=0 && direction.y < 0.05) {
+                    return horizon;
+                }
+                else if(direction.y >=0.05 && direction.y < 0.4) {
+                    float step = smoothstep(0.05, 0.4, direction.y);
+                    return lerp(horizon, sky, step);
+                }
+                return sky;
             }
 
             v2f vert (appdata v)
@@ -120,14 +152,14 @@ Shader "Custom/rayMarch"
                 float4 globalCoords = mul(localToWorldMatrix, float4(localCoords, 1));
 
                 float3 direction = normalize(globalCoords.xyz - cameraPosition);
-                marchResult result = rayMarch(cameraPosition, direction);
+                marchResult result = getRayResult(cameraPosition, direction);
                 //return result.dist;
                 //return float4(direction, 0);
                 if(result.hit == true){
                     return float4(1,0,0,0);
                 }
                 else {
-                    return skyBoxColor(direction);
+                    return skyBoxColor(result.direction);
                 }
                 //return float4(globalCoords.x, globalCoords.y, globalCoords.z, 0);
             }
