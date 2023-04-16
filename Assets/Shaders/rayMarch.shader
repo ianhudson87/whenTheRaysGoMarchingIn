@@ -20,9 +20,12 @@ Shader "Custom/rayMarch"
             #include "UnityCG.cginc"
 
             #define MAX_STEPS 1000
-            #define SURFACE_DIST 0.0001
+            #define SURFACE_DIST 0.001
             #define MAX_DIST 60
-            #define RADIUS 0.1
+            #define RADIUS 2
+            #define MAX_REFLECTIONS 4
+            #define EPSILON 0.0001 // used for estimating the gradient for estimating the normal vector of surface
+            #define REFLECTION_BUMP_MULTIPLIER 1.1 // used for moving hit position slightly away from surface when doing reflection so we don't instantly get a hit again
 
             struct appdata
             {
@@ -56,10 +59,12 @@ Shader "Custom/rayMarch"
             float ambientOcclusion;
 
             float getDist(float3 p) {
-                p.x = p.x > 0 ? p.x % 1. : 1 + p.x % 1.;
-                p.y = p.y > 0 ? p.y % 1. : 1 + p.y % 1.;
-                p.z = p.z > 0 ? p.z % 1. : 1 + p.z % 1.;
-                return length(p) - RADIUS;
+                //p.x = p.x > 0 ? p.x % 1. : 1 + p.x % 1.;
+                //p.y = p.y > 0 ? p.y % 1. : 1 + p.y % 1.;
+                //p.z = p.z > 0 ? p.z % 1. : 1 + p.z % 1.;
+                //return length(p) - RADIUS;
+                //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
+                return min(length(p) - RADIUS, length(p - float3(5, 5, 5)) - RADIUS);
                 //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
             }
 
@@ -98,7 +103,12 @@ Shader "Custom/rayMarch"
 
             float3 getHitNormal(float3 hitPos) {
                 // return direction normal to the surface where hitHappened
-                return normalize(hitPos);
+                // returns the (estimated) gradient of the distance function
+                float hitDistance = getDist(hitPos); // TODO: might be able to pass this in
+                float dfdx = (getDist(hitPos + float3(EPSILON, 0, 0)) - hitDistance) / EPSILON;
+                float dfdy = (getDist(hitPos + float3(0, EPSILON, 0)) - hitDistance) / EPSILON;
+                float dfdz = (getDist(hitPos + float3(0, 0, EPSILON)) - hitDistance) / EPSILON;
+                return normalize(float3(dfdx, dfdy, dfdz));
             }
 
             float3 getReflectionDirection(float3 hitPos, float3 incomingDirection) {
@@ -112,13 +122,20 @@ Shader "Custom/rayMarch"
             }
 
             marchResult getRayResult(float3 origin, float3 direction) {
-                marchResult firstResult = rayMarch(origin, direction, 0);
-                //if(firstResult.hit){
-                //    // do reflection
-                //    float3 reflectDirection = getReflectionDirection(firstResult.hitPos, direction);
-                //    return rayMarch(firstResult.hitPos + getHitNormal(firstResult.hitPos) * SURFACE_DIST * 1.1, reflectDirection, firstResult.accumulatedSteps); // move start position slightly away from surface so we're not within the surface dist
-                //}
-                return firstResult;
+                marchResult currentResult = rayMarch(origin, direction, 0);
+                for(int i = 0; i < MAX_REFLECTIONS; i++) {
+                    if(currentResult.hit){
+                        // do reflection
+                        float3 reflectDirection = getReflectionDirection(currentResult.hitPos, currentResult.direction);
+                        float3 startPosition = currentResult.hitPos + getHitNormal(currentResult.hitPos) * SURFACE_DIST * REFLECTION_BUMP_MULTIPLIER;
+                        currentResult = rayMarch(startPosition, reflectDirection, currentResult.accumulatedSteps); // move start position slightly away from surface so we're not within the surface dist
+                    }
+                    else {
+                        return currentResult;
+                    }
+                }
+                return currentResult;
+                
             }
 
             float4 skyBoxColor(float3 direction){
