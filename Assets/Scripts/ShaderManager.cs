@@ -5,6 +5,8 @@ using UnityEngine;
 public class ShaderManager : MonoBehaviour
 {
     [SerializeField] Shader shader;
+    [SerializeField] Vector3 fogColor;
+    [SerializeField] float ambientOcclusion;
     Material material;
     Camera cam;
 
@@ -21,6 +23,7 @@ public class ShaderManager : MonoBehaviour
         material.SetVector("cameraSettings", new Vector3(cameraSettings.x, cameraSettings.y, cam.nearClipPlane));
         material.SetMatrix("localToWorldMatrix", this.transform.localToWorldMatrix);
         material.SetVector("cameraPosition", this.transform.position);
+        material.SetFloat("ambientOcclusion", ambientOcclusion);
         Graphics.Blit(null, destination, material);
     }
 

@@ -22,7 +22,7 @@ Shader "Custom/rayMarch"
             #define MAX_STEPS 1000
             #define SURFACE_DIST 0.0001
             #define MAX_DIST 60
-            #define RADIUS 2
+            #define RADIUS 0.1
 
             struct appdata
             {
@@ -40,10 +40,11 @@ Shader "Custom/rayMarch"
             struct marchResult
             {
                 float dist;
-                int stepsTaken;
+                int stepsTaken; // on the last march
                 bool hit;
                 float3 hitPos;
                 float3 direction;
+                int accumulatedSteps; // on all marches
             };
 
             // get variables passed from material
@@ -52,20 +53,26 @@ Shader "Custom/rayMarch"
             float3 cameraSettings;
             float4x4 localToWorldMatrix;
             float3 cameraPosition;
+            float ambientOcclusion;
 
             float getDist(float3 p) {
+                p.x = p.x > 0 ? p.x % 1. : 1 + p.x % 1.;
+                p.y = p.y > 0 ? p.y % 1. : 1 + p.y % 1.;
+                p.z = p.z > 0 ? p.z % 1. : 1 + p.z % 1.;
                 return length(p) - RADIUS;
+                //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
             }
 
-            marchResult rayMarch(float3 origin, float3 direction) {
+            marchResult rayMarch(float3 origin, float3 direction, int accumulatedSteps) {
+                // TODO: add accumulated distance and steps to the march result
                 // gives calculated distance to scene
                 marchResult march;
                 float3 currentPos = origin;
                 float traveledDist = 0;
-                int i;
+                int numSteps;
                 bool hit=false;
 
-                for(i = 0; i < MAX_STEPS; i++) {
+                for(numSteps = 0; numSteps < MAX_STEPS; numSteps++) {
                     float dist = getDist(currentPos);
 
                     if (dist < SURFACE_DIST) {
@@ -81,10 +88,11 @@ Shader "Custom/rayMarch"
                 }
 
                 march.dist = traveledDist;
-                march.stepsTaken = i;
+                march.stepsTaken = numSteps;
                 march.hit = hit;
                 march.hitPos = origin + (direction * traveledDist);
                 march.direction = direction;
+                march.accumulatedSteps = accumulatedSteps + numSteps;
                 return march;
             }
 
@@ -104,12 +112,12 @@ Shader "Custom/rayMarch"
             }
 
             marchResult getRayResult(float3 origin, float3 direction) {
-                marchResult firstResult = rayMarch(origin, direction);
-                if(firstResult.hit){
-                    // do reflection
-                    float3 reflectDirection = getReflectionDirection(firstResult.hitPos, direction);
-                    return rayMarch(firstResult.hitPos + getHitNormal(firstResult.hitPos) * SURFACE_DIST * 1.1, reflectDirection); // move start position slightly away from surface so we're not within the surface dist
-                }
+                marchResult firstResult = rayMarch(origin, direction, 0);
+                //if(firstResult.hit){
+                //    // do reflection
+                //    float3 reflectDirection = getReflectionDirection(firstResult.hitPos, direction);
+                //    return rayMarch(firstResult.hitPos + getHitNormal(firstResult.hitPos) * SURFACE_DIST * 1.1, reflectDirection, firstResult.accumulatedSteps); // move start position slightly away from surface so we're not within the surface dist
+                //}
                 return firstResult;
             }
 
@@ -143,6 +151,15 @@ Shader "Custom/rayMarch"
                 return o;
             }
 
+            float4 getColor(marchResult result) {
+                if(result.hit == true){
+                    return float4(0,0.6,0,0);
+                }
+                else {
+                    return skyBoxColor(result.direction) - (result.accumulatedSteps * ambientOcclusion);
+                }
+            }
+
             // for every pixel on the screen. i.uv is the coordinate on the screen.
             fixed4 frag (v2f i) : SV_Target
             {
@@ -153,15 +170,7 @@ Shader "Custom/rayMarch"
 
                 float3 direction = normalize(globalCoords.xyz - cameraPosition);
                 marchResult result = getRayResult(cameraPosition, direction);
-                //return result.dist;
-                //return float4(direction, 0);
-                if(result.hit == true){
-                    return float4(1,0,0,0);
-                }
-                else {
-                    return skyBoxColor(result.direction);
-                }
-                //return float4(globalCoords.x, globalCoords.y, globalCoords.z, 0);
+                return getColor(result);
             }
             ENDCG
         }

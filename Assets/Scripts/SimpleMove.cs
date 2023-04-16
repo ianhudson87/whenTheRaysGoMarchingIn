@@ -4,11 +4,7 @@ using UnityEngine;
 
 public class SimpleMove : MonoBehaviour
 {
-    [SerializeField] float speed;
-    [SerializeField] float slowSpeedMultiplier;
-    [SerializeField] float fastSpeedMultiplier;
-    [SerializeField] float rotateSpeed;
-    [SerializeField] float sensitivity;
+    [SerializeField] float speed, slowSpeedMultiplier, fastSpeedMultiplier, rotateSpeed, sensitivity;
 
     Vector3 position;
     float horizontalRotation;

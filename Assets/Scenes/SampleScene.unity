@@ -316,6 +316,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   shader: {fileID: 4800000, guid: d0b5f65cae0276546a4262dbf5988b21, type: 3}
+  fogColor: {x: 0, y: 0, z: 0}
+  ambientOcclusion: 0.001
 --- !u!114 &963194230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -328,8 +330,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eac47e62b345f354b84e5f13e5e7e4ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 1
+  speed: 0.5
   slowSpeedMultiplier: 0.5
   fastSpeedMultiplier: 2
   rotateSpeed: 0
-  sensitivity: 2
+  sensitivity: 1.2
