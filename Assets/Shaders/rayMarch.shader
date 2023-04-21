@@ -23,7 +23,7 @@ Shader "Custom/rayMarch"
             #define SURFACE_DIST 0.001
             #define MAX_DIST 60
             #define RADIUS 2
-            #define MAX_REFLECTIONS 4
+            #define MAX_REFLECTIONS 10
             #define EPSILON 0.0001 // used for estimating the gradient for estimating the normal vector of surface
             #define REFLECTION_BUMP_MULTIPLIER 1.1 // used for moving hit position slightly away from surface when doing reflection so we don't instantly get a hit again
 
@@ -57,14 +57,26 @@ Shader "Custom/rayMarch"
             float4x4 localToWorldMatrix;
             float3 cameraPosition;
             float ambientOcclusion;
+            float4 spheres[3];
 
             float getDist(float3 p) {
+                return min(min(length(p - spheres[0].xyz) - spheres[0].w, length(p - spheres[1].xyz) - spheres[1].w), length(p - spheres[2].xyz) - spheres[2].w);
+                //float min = MAX_DIST;
+                //for(int i = 0; i < 1; i++) {
+                //    float dist = length(p - spheres[i].xyz) - spheres[i].w;
+                //    if (dist < min) {
+                //        min = dist;
+                //    }
+                //}
+                //return min;
+
+
                 //p.x = p.x > 0 ? p.x % 1. : 1 + p.x % 1.;
                 //p.y = p.y > 0 ? p.y % 1. : 1 + p.y % 1.;
                 //p.z = p.z > 0 ? p.z % 1. : 1 + p.z % 1.;
                 //return length(p) - RADIUS;
                 //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
-                return min(length(p) - RADIUS, length(p - float3(5, 5, 5)) - RADIUS);
+                //return min(length(p) - RADIUS, length(p - float3(5, 5, 5)) - RADIUS);
                 //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
             }
 
