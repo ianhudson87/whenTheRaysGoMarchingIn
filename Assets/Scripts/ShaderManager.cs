@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
 public class ShaderManager : MonoBehaviour
 {
     [SerializeField] Shader shader;
@@ -10,32 +11,48 @@ public class ShaderManager : MonoBehaviour
     Material material;
     Camera cam;
 
-    Vector4 sphere1 = new Vector4(0,0,0,1);
-    Vector4 sphere2 = new Vector4(0,0,3,1.5f);
-    Vector4 sphere3 = new Vector4(0, 0, -2, 0.75f);
+    Vector4[] spheres = new Vector4[50];
+    float[] xoffsets = new float[50];
+    float[] yoffsets = new float[50];
+    float[] zoffsets = new float[50];
+    float[] xmags = new float[50];
+    float[] ymags = new float[50];
+    float[] zmags = new float[50];
     float time = 0;
 
     private void Start()
     {
         material = new Material(shader);
         cam = GetComponent<Camera>();
+
+        for (int i = 0; i < 50; i++) {
+            spheres[i] = new Vector4(0,0,0,Random.Range(0.1f, 1.0f));
+            xoffsets[i] = Random.Range(0, 360);
+            yoffsets[i] = Random.Range(0, 360);
+            zoffsets[i] = Random.Range(0, 360);
+            xmags[i] = Random.Range(0, 10f);
+            ymags[i] = Random.Range(0, 10f);
+            zmags[i] = Random.Range(0, 10f);
+        }
     }
 
     private void Update()
     {
         time += Time.deltaTime;
-        sphere1.x = Mathf.Cos(time/3);
-        sphere1.y = Mathf.Cos(time/3);
-        sphere2.x = Mathf.Sin(time/3);
-        sphere2.y = Mathf.Sin(time/3);
+        float val = time / 30;
+        for (int i = 0; i < spheres.Length; i++) {
+            spheres[i].x = xmags[i] * Mathf.Sin(val - xoffsets[i]);
+            spheres[i].y = ymags[i] * Mathf.Sin(val - yoffsets[i]);
+            spheres[i].z = zmags[i] * Mathf.Sin(val - zoffsets[i]);
+        }
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
-        List<Vector4> spheres = new List<Vector4>();
-        spheres.Add(sphere1);
-        spheres.Add(sphere2);
-        spheres.Add(sphere3);
+        //List<Vector4> spheres = new List<Vector4>();
+        //spheres.Add(sphere1);
+        //spheres.Add(sphere2);
+        //spheres.Add(sphere3);
         Vector2 cameraSettings = getRenderPlaneWidthHeight();
         material.SetVector("cameraSettings", new Vector3(cameraSettings.x, cameraSettings.y, cam.nearClipPlane));
         material.SetMatrix("localToWorldMatrix", this.transform.localToWorldMatrix);

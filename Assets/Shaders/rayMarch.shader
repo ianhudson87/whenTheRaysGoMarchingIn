@@ -21,7 +21,7 @@ Shader "Custom/rayMarch"
 
             #define MAX_STEPS 1000
             #define SURFACE_DIST 0.001
-            #define MAX_DIST 60
+            #define MAX_DIST 60.
             #define RADIUS 2
             #define MAX_REFLECTIONS 10
             #define EPSILON 0.0001 // used for estimating the gradient for estimating the normal vector of surface
@@ -57,18 +57,19 @@ Shader "Custom/rayMarch"
             float4x4 localToWorldMatrix;
             float3 cameraPosition;
             float ambientOcclusion;
-            float4 spheres[3];
+            float4 spheres[50];
 
             float getDist(float3 p) {
-                return min(min(length(p - spheres[0].xyz) - spheres[0].w, length(p - spheres[1].xyz) - spheres[1].w), length(p - spheres[2].xyz) - spheres[2].w);
-                //float min = MAX_DIST;
-                //for(int i = 0; i < 1; i++) {
-                //    float dist = length(p - spheres[i].xyz) - spheres[i].w;
-                //    if (dist < min) {
-                //        min = dist;
-                //    }
-                //}
-                //return min;
+                //return min(min(length(p - spheres[0].xyz) - spheres[0].w, length(p - spheres[1].xyz) - spheres[1].w), length(p - spheres[2].xyz) - spheres[2].w);
+                float minDist = 500;
+                for(int i = 0; i < 50; i++) {
+                    float dist = length(p - spheres[i].xyz) - spheres[i].w;
+                    if (dist < minDist) {
+                        minDist = dist;
+                    }
+                }
+                return minDist;
+                //return min(min(length(p - spheres[0].xyz) - spheres[0].w, length(p - spheres[1].xyz) - spheres[1].w), length(p - spheres[2].xyz) - spheres[2].w);
 
 
                 //p.x = p.x > 0 ? p.x % 1. : 1 + p.x % 1.;
