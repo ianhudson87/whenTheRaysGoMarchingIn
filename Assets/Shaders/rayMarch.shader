@@ -20,11 +20,11 @@ Shader "Custom/rayMarch"
             #include "UnityCG.cginc"
 
             #define MAX_STEPS 1000
-            #define SURFACE_DIST 0.001
-            #define MAX_DIST 60.
+            #define SURFACE_DIST 0.0001
+            #define MAX_DIST 100.
             #define RADIUS 2
             #define MAX_REFLECTIONS 10
-            #define EPSILON 0.0001 // used for estimating the gradient for estimating the normal vector of surface
+            #define EPSILON 0.0001 // used for estimating the gradient for estimating the normal vector of surface. Should probably be smaller than surface distance
             #define REFLECTION_BUMP_MULTIPLIER 1.1 // used for moving hit position slightly away from surface when doing reflection so we don't instantly get a hit again
 
             struct appdata
@@ -42,12 +42,13 @@ Shader "Custom/rayMarch"
 
             struct marchResult
             {
-                float dist;
+                float dist; // on the last march
                 int stepsTaken; // on the last march
                 bool hit;
                 float3 hitPos;
                 float3 direction;
                 int accumulatedSteps; // on all marches
+                float accumulatedDistance; // on all marches
             };
 
             // get variables passed from material
@@ -58,30 +59,25 @@ Shader "Custom/rayMarch"
             float3 cameraPosition;
             float ambientOcclusion;
             float4 spheres[50];
+            float3x3 triangles[50];
 
             float getDist(float3 p) {
-                //return min(min(length(p - spheres[0].xyz) - spheres[0].w, length(p - spheres[1].xyz) - spheres[1].w), length(p - spheres[2].xyz) - spheres[2].w);
-                float minDist = 500;
-                for(int i = 0; i < 50; i++) {
-                    float dist = length(p - spheres[i].xyz) - spheres[i].w;
-                    if (dist < minDist) {
-                        minDist = dist;
-                    }
-                }
-                return minDist;
-                //return min(min(length(p - spheres[0].xyz) - spheres[0].w, length(p - spheres[1].xyz) - spheres[1].w), length(p - spheres[2].xyz) - spheres[2].w);
+                //float minDist = MAX_DIST;
+                //for(int i = 0; i < 50; i++) {
+                //    float dist = length(p - spheres[i].xyz) - spheres[i].w;
+                //    if (dist < minDist) {
+                //        minDist = dist;
+                //    }
+                //}
+                //return minDist;
 
-
-                //p.x = p.x > 0 ? p.x % 1. : 1 + p.x % 1.;
-                //p.y = p.y > 0 ? p.y % 1. : 1 + p.y % 1.;
-                //p.z = p.z > 0 ? p.z % 1. : 1 + p.z % 1.;
-                //return length(p) - RADIUS;
-                //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
-                //return min(length(p) - RADIUS, length(p - float3(5, 5, 5)) - RADIUS);
-                //return length(p - float3(0.5, 0.5, 0.5)) - RADIUS;
+                p.x = p.x > 0 ? p.x % 10. : 10 + p.x % 10.;
+                p.y = p.y > 0 ? p.y % 10. : 10 + p.y % 10.;
+                p.z = p.z > 0 ? p.z % 10. : 10 + p.z % 10.;
+                return length(p - float3(5, 5, 5)) - 2;
             }
 
-            marchResult rayMarch(float3 origin, float3 direction, int accumulatedSteps) {
+            marchResult rayMarch(float3 origin, float3 direction, int accumulatedSteps, float accumulatedDistance) {
                 // TODO: add accumulated distance and steps to the march result
                 // gives calculated distance to scene
                 marchResult march;
@@ -91,18 +87,18 @@ Shader "Custom/rayMarch"
                 bool hit=false;
 
                 for(numSteps = 0; numSteps < MAX_STEPS; numSteps++) {
-                    float dist = getDist(currentPos);
+                    float stepDist = getDist(currentPos);
 
-                    if (dist < SURFACE_DIST) {
+                    if (stepDist < SURFACE_DIST) {
                         hit = true;
                         break;
                     }
-                    if(dist > MAX_DIST){
+                    if(accumulatedDistance + traveledDist > MAX_DIST){
                         break;
                     }
 
-                    currentPos += direction * dist;
-                    traveledDist += dist;
+                    currentPos += direction * stepDist;
+                    traveledDist += stepDist;
                 }
 
                 march.dist = traveledDist;
@@ -111,6 +107,7 @@ Shader "Custom/rayMarch"
                 march.hitPos = origin + (direction * traveledDist);
                 march.direction = direction;
                 march.accumulatedSteps = accumulatedSteps + numSteps;
+                march.accumulatedDistance = accumulatedDistance + traveledDist;
                 return march;
             }
 
@@ -135,13 +132,13 @@ Shader "Custom/rayMarch"
             }
 
             marchResult getRayResult(float3 origin, float3 direction) {
-                marchResult currentResult = rayMarch(origin, direction, 0);
+                marchResult currentResult = rayMarch(origin, direction, 0, 0.0);
                 for(int i = 0; i < MAX_REFLECTIONS; i++) {
                     if(currentResult.hit){
                         // do reflection
                         float3 reflectDirection = getReflectionDirection(currentResult.hitPos, currentResult.direction);
-                        float3 startPosition = currentResult.hitPos + getHitNormal(currentResult.hitPos) * SURFACE_DIST * REFLECTION_BUMP_MULTIPLIER;
-                        currentResult = rayMarch(startPosition, reflectDirection, currentResult.accumulatedSteps); // move start position slightly away from surface so we're not within the surface dist
+                        float3 startPosition = currentResult.hitPos + getHitNormal(currentResult.hitPos) * SURFACE_DIST * REFLECTION_BUMP_MULTIPLIER; // move start position slightly away from surface so we're not within the surface dist
+                        currentResult = rayMarch(startPosition, reflectDirection, currentResult.accumulatedSteps, currentResult.accumulatedDistance); 
                     }
                     else {
                         return currentResult;
@@ -183,7 +180,7 @@ Shader "Custom/rayMarch"
 
             float4 getColor(marchResult result) {
                 if(result.hit == true){
-                    return float4(0,0.6,0,0);
+                    return float4(0,0.2,0,0);
                 }
                 else {
                     return skyBoxColor(result.direction) - (result.accumulatedSteps * ambientOcclusion);

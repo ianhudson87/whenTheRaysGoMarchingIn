@@ -39,7 +39,7 @@ public class ShaderManager : MonoBehaviour
     private void Update()
     {
         time += Time.deltaTime;
-        float val = time / 30;
+        float val = time / 60;
         for (int i = 0; i < spheres.Length; i++) {
             spheres[i].x = xmags[i] * Mathf.Sin(val - xoffsets[i]);
             spheres[i].y = ymags[i] * Mathf.Sin(val - yoffsets[i]);
